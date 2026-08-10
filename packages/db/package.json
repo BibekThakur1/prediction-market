@@ -5,7 +5,10 @@
   "export": {
     "./": "./index.ts"
   },
-  "private": true,
+ "private": true,
+"scripts": {
+  "postinstall": "prisma generate"
+},
   "devDependencies": {
     "@types/bun": "latest",
     "@types/pg": "^8.20.0",
