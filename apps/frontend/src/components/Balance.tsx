@@ -1,121 +1,24 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
+import { api } from "../api";
+import type { Account } from "../types";
 
-interface BalanceProps {
-  token: string;
-}
-
-export function Balance({ token }: BalanceProps) {
-  const [balance, setBalance] = useState<number>(0);
-  const [amount, setAmount] = useState<string>("100");
+export function Balance({ token }: { token: string }) {
+  const [account, setAccount] = useState<Account | null>(null);
+  const [amount, setAmount] = useState("25");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string>("");
-  const [success, setSuccess] = useState<string>("");
-
-  const fetchBalance = async () => {
-    try {
-      const response = await fetch("http://localhost:3000/balance", {
-        headers: { Authorization: token },
-      });
-      const data = await response.json();
-      setBalance(data.balance / 100); // Convert from cents to dollars
-    } catch (err) {
-      console.error("Failed to fetch balance:", err);
-    }
-  };
-
-  useEffect(() => {
-    fetchBalance();
-  }, [token]);
-
-  const handleOnramp = async () => {
-    setLoading(true);
-    setError("");
-    setSuccess("");
-
-    try {
-      const response = await fetch("http://localhost:3000/onramp", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: token,
-        },
-        body: JSON.stringify({ amount: parseFloat(amount) }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "Onramp failed");
-      }
-
-      setSuccess(`Successfully added $${amount} to your balance!`);
-      fetchBalance();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Onramp failed");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleOfframp = async () => {
-    setLoading(true);
-    setError("");
-    setSuccess("");
-
-    try {
-      const response = await fetch("http://localhost:3000/offramp", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: token,
-        },
-        body: JSON.stringify({ amount: parseFloat(amount) }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "Offramp failed");
-      }
-
-      setSuccess(`Successfully withdrew $${amount} from your balance!`);
-      fetchBalance();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Offramp failed");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="balance-section">
-      <h3>Balance</h3>
-      <div className="balance-display">
-        <span className="balance-amount">${balance.toFixed(2)}</span>
-      </div>
-
-      {error && <div className="error">{error}</div>}
-      {success && <div className="success">{success}</div>}
-
-      <div className="balance-actions">
-        <div className="form-group">
-          <label>Amount ($):</label>
-          <input
-            type="number"
-            step="0.01"
-            min="0.01"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-          />
-        </div>
-
-        <button onClick={handleOnramp} disabled={loading}>
-          {loading ? "Processing..." : "Onramp"}
-        </button>
-        <button onClick={handleOfframp} disabled={loading}>
-          {loading ? "Processing..." : "Offramp"}
-        </button>
-      </div>
-    </div>
-  );
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+  const load = async () => setAccount((await api.me(token)).user);
+  useEffect(() => { api.me(token).then((data) => setAccount(data.user)).catch((err) => setError(err instanceof Error ? err.message : "Could not load balances")); }, [token]);
+  async function move(type: "deposit" | "withdraw") {
+    const value = Number(amount); if (!Number.isFinite(value) || value <= 0) return setMessage("Enter a positive amount.");
+    try { setLoading(true); setMessage(""); setError(""); await api[type](token, value); await load(); setMessage(`${type === "deposit" ? "Added" : "Withdrew"} $${value.toFixed(2)} test credits.`); }
+    catch (err) { setError(err instanceof Error ? err.message : "Transfer failed"); } finally { setLoading(false); }
+  }
+  if (!account) return <div className="balance-section" aria-live="polite">{error ? <><div className="error" role="alert">{error}</div><button className="refresh-button" onClick={() => { setError(""); void load().catch((err) => setError(err instanceof Error ? err.message : "Could not load balances")); }}>Try again</button></> : "Loading balances…"}</div>;
+  return <section className="balance-section"><span className="eyebrow">Testnet wallet</span><h3>Funds</h3>
+    <div className="balance-grid"><div className="balance-display"><span>Available</span><strong>${(account.availableBalance / 100).toFixed(2)}</strong><small>Ready to trade or withdraw</small></div><div className="balance-display reserved"><span>Reserved</span><strong>${(account.reservedBalance / 100).toFixed(2)}</strong><small>Backing open buy orders</small></div></div>
+    {message && <div className="success" role="status">{message}</div>}{error && <div className="error" role="alert">{error}</div>}
+    <div className="balance-actions"><div className="form-group"><label htmlFor="fund-amount">Amount in test USD</label><input id="fund-amount" type="number" min="0.01" step="0.01" value={amount} onChange={(event) => setAmount(event.target.value)} /></div><button onClick={() => move("deposit")} disabled={loading}>Add credits</button><button onClick={() => move("withdraw")} disabled={loading}>Withdraw</button></div>
+  </section>;
 }

@@ -1,8 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
   provider = "prisma-client"
   output   = "../generated/prisma"
@@ -10,62 +5,199 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-
 }
 
 model User {
-  id          String     @id   @default(uuid())
-  address     String     @unique
-  usdBalance  Int // $100.11 => 10011 assume a demial of 2 for fiat balances
-  positions   Position[]
-  orders      OrderHistory[]
+  id               String        @id @default(uuid())
+  address          String        @unique
+  availableBalance Int           @default(0)
+  reservedBalance  Int           @default(0)
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  positions        Position[]
+  orders           Order[]
+  ledgerEntries    LedgerEntry[]
+  transfers        Transfer[]
+
   @@index([address])
 }
 
 model Market {
-  id                           String     @id   @default(uuid())
-  title                        String
-  description                  String
-  resolutionDescription        String
-  yesOrderbook                 Json
-  noOrderbook                  Json
-  totalQty                     Int
-  positions                    Position[]
-  orders                       OrderHistory[]
-  resolution                   PositionType?
+  id                    String            @id @default(uuid())
+  title                 String
+  description           String
+  resolutionDescription String
+  category              String            @default("General")
+  status                MarketStatus      @default(OPEN)
+  closesAt              DateTime?
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+  positions             Position[]
+  orders                Order[]
+  trades                Trade[]
+  resolution            MarketResolution?
+
+  @@index([status, createdAt])
+  @@index([category])
+}
+
+model Order {
+  id             String        @id @default(uuid())
+  userId         String
+  marketId       String
+  outcome        Outcome
+  side           OrderSide
+  price          Int
+  quantity       Int
+  filledQuantity Int           @default(0)
+  status         OrderStatus   @default(OPEN)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  cancelledAt    DateTime?
+  user           User          @relation(fields: [userId], references: [id])
+  market         Market        @relation(fields: [marketId], references: [id])
+  makerTrades    Trade[]       @relation("MakerOrder")
+  takerTrades    Trade[]       @relation("TakerOrder")
+  ledgerEntries  LedgerEntry[]
+
+  @@index([marketId, outcome, side, status, price, createdAt])
+  @@index([userId, createdAt])
+}
+
+model Trade {
+  id            String        @id @default(uuid())
+  marketId      String
+  outcome       Outcome
+  price         Int
+  quantity      Int
+  buyerId       String
+  sellerId      String
+  makerOrderId  String
+  takerOrderId  String
+  createdAt     DateTime      @default(now())
+  market        Market        @relation(fields: [marketId], references: [id])
+  makerOrder    Order         @relation("MakerOrder", fields: [makerOrderId], references: [id])
+  takerOrder    Order         @relation("TakerOrder", fields: [takerOrderId], references: [id])
+  ledgerEntries LedgerEntry[]
+
+  @@index([marketId, createdAt])
+  @@index([buyerId, createdAt])
+  @@index([sellerId, createdAt])
 }
 
 model Position {
-  id                String     @id   @default(uuid())
-  userId            String
-  marketId          String
-  type              PositionType
-  user              User        @relation(fields: [userId], references: [id])
-  market            Market      @relation(fields: [marketId], references: [id])
-  qty               Int
-  @@unique([userId, marketId, type])
+  id           String   @id @default(uuid())
+  userId       String
+  marketId     String
+  outcome      Outcome
+  availableQty Int      @default(0)
+  reservedQty  Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  user         User     @relation(fields: [userId], references: [id])
+  market       Market   @relation(fields: [marketId], references: [id])
+
+  @@unique([userId, marketId, outcome])
+  @@index([marketId, outcome])
 }
 
-model OrderHistory {
-  id                String    @id   @default(uuid())
-  orderType         OrderType
-  qty               Int
-  price             Int
-  userId            String
-  marketId          String
+model LedgerEntry {
+  id             String       @id @default(uuid())
+  userId         String
+  marketId       String?
+  orderId        String?
+  tradeId        String?
+  transferId     String?
+  asset          LedgerAsset
+  availableDelta Int
+  reservedDelta  Int
+  reason         LedgerReason
+  createdAt      DateTime     @default(now())
+  user           User         @relation(fields: [userId], references: [id])
+  order          Order?       @relation(fields: [orderId], references: [id])
+  trade          Trade?       @relation(fields: [tradeId], references: [id])
+  transfer       Transfer?    @relation(fields: [transferId], references: [id])
 
-  user              User        @relation(fields: [userId], references: [id])
-  market            Market      @relation(fields: [marketId], references: [id])
+  @@index([userId, createdAt])
+  @@index([orderId])
+  @@index([tradeId])
 }
 
-enum OrderType {
-  Buy
-  Sell
-  Split
-  Merge
+model Transfer {
+  id            String         @id @default(uuid())
+  userId        String
+  type          TransferType
+  status        TransferStatus @default(COMPLETED)
+  amount        Int
+  externalRef   String?        @unique
+  createdAt     DateTime       @default(now())
+  completedAt   DateTime?
+  user          User           @relation(fields: [userId], references: [id])
+  ledgerEntries LedgerEntry[]
+
+  @@index([userId, createdAt])
 }
 
-enum PositionType {
-  Yes
-  No
+model MarketResolution {
+  id         String   @id @default(uuid())
+  marketId   String   @unique
+  outcome    Outcome
+  source     String
+  evidence   String?
+  resolvedBy String
+  resolvedAt DateTime @default(now())
+  market     Market   @relation(fields: [marketId], references: [id])
+}
+
+enum MarketStatus {
+  OPEN
+  CLOSED
+  RESOLVED
+  CANCELLED
+}
+
+enum Outcome {
+  YES
+  NO
+}
+
+enum OrderSide {
+  BUY
+  SELL
+}
+
+enum OrderStatus {
+  OPEN
+  PARTIALLY_FILLED
+  FILLED
+  CANCELLED
+}
+
+enum LedgerAsset {
+  CASH
+  YES
+  NO
+}
+
+enum LedgerReason {
+  DEPOSIT
+  WITHDRAWAL
+  ORDER_RESERVE
+  ORDER_RELEASE
+  TRADE_SETTLEMENT
+  SPLIT
+  MERGE
+  RESOLUTION
+}
+
+enum TransferType {
+  DEPOSIT
+  WITHDRAWAL
+}
+
+enum TransferStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  CANCELLED
 }

@@ -1,27 +1,26 @@
 import z from "zod";
 
+const positiveInt = z.coerce.number().int().positive();
+
 export const CreateOrderSchema = z.object({
-    marketId: z.string(),
-    side: z.enum(["yes", "no"]),
-    type: z.enum(["buy", "sell"]),
-    price: z.int(), // 10 => 0.10$ 
-    qty: z.int() // 10 => 10qty
-})
+  marketId: z.string().uuid(),
+  outcome: z.enum(["YES", "NO"]),
+  side: z.enum(["BUY", "SELL"]),
+  price: positiveInt.max(99),
+  quantity: positiveInt.max(1_000_000),
+});
 
-export type Orderbook = {[key: string]: {
-    availableQty: number,
-    orders: { userId: string, qty: number, filledQty: number, originalOrderId: string, reverseOrder: boolean }[]
-}}
+export const CancelOrderSchema = z.object({
+  orderId: z.string().uuid(),
+});
 
-export const SplitSchema = z.object({
-    marketId: z.string(),
-    amount: z.number() // 1 => 1
-})
+export const SplitMergeSchema = z.object({
+  marketId: z.string().uuid(),
+  quantity: positiveInt.max(1_000_000),
+});
 
-export const OnrampSchema = z.object({
-    amount: z.number() // amount in USD (e.g., 100.50)
-})
+export const TransferSchema = z.object({
+  amount: z.coerce.number().positive().max(1_000_000),
+});
 
-export const OfframpSchema = z.object({
-    amount: z.number() // amount in USD (e.g., 100.50)
-})
+export type CreateOrderInput = z.infer<typeof CreateOrderSchema>;

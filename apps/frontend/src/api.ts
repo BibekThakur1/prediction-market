@@ -1,87 +1,31 @@
-import axios from "axios";
+import type { Market, Order, Position } from "./types";
 
-const API_BASE = "http://localhost:3000";
+const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
+
+async function request<T>(path: string, token?: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(`${API_BASE}${path}`, {
+    ...init,
+    headers: {
+      ...(init?.body ? { "Content-Type": "application/json" } : {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...init?.headers,
+    },
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload.error?.message ?? "Request failed");
+  return payload;
+}
 
 export const api = {
-  // Public endpoints
-  getMarkets: async () => {
-    const response = await axios.get(`${API_BASE}/markets`);
-    return response.data;
-  },
-
-  getMarket: async (marketId: string) => {
-    const response = await axios.get(`${API_BASE}/market`, {
-      params: { marketId }
-    });
-    return response.data;
-  },
-
-  // Protected endpoints (require auth token)
-  placeOrder: async (token: string, orderData: {
-    marketId: string;
-    side: "yes" | "no";
-    type: "buy" | "sell";
-    price: number;
-    qty: number;
-  }) => {
-    const response = await axios.post(`${API_BASE}/order`, orderData, {
-      headers: { Authorization: token }
-    });
-    return response.data;
-  },
-
-  getBalance: async (token: string) => {
-    const response = await axios.get(`${API_BASE}/balance`, {
-      headers: { Authorization: token }
-    });
-    return response.data;
-  },
-
-  getPositions: async (token: string) => {
-    const response = await axios.get(`${API_BASE}/positions`, {
-      headers: { Authorization: token }
-    });
-    return response.data;
-  },
-
-  getOrderHistory: async (token: string) => {
-    const response = await axios.post(`${API_BASE}/history`, {}, {
-      headers: { Authorization: token }
-    });
-    return response.data;
-  },
-
-  splitPosition: async (token: string, data: {
-    marketId: string;
-    amount: number;
-  }) => {
-    const response = await axios.post(`${API_BASE}/split`, data, {
-      headers: { Authorization: token }
-    });
-    return response.data;
-  },
-
-  mergePosition: async (token: string, data: {
-    marketId: string;
-    amount: number;
-  }) => {
-    const response = await axios.post(`${API_BASE}/merge`, data, {
-      headers: { Authorization: token }
-    });
-    return response.data;
-  },
-
-  onramp: async (token: string, amount: number) => {
-    const response = await axios.post(`${API_BASE}/onramp`, { amount }, {
-      headers: { Authorization: token }
-    });
-    return response.data;
-  },
-
-  offramp: async (token: string, amount: number) => {
-    const response = await axios.post(`${API_BASE}/offramp`, { amount }, {
-      headers: { Authorization: token }
-    });
-    return response.data;
-  },
+  markets: () => request<{ markets: Market[] }>("/markets"),
+  me: (token: string) => request<{ user: { id: string; address: string; availableBalance: number; reservedBalance: number } }>("/me", token),
+  positions: (token: string) => request<{ positions: Position[] }>("/positions", token),
+  orders: (token: string) => request<{ orders: Order[] }>("/orders", token),
+  placeOrder: (token: string, data: { marketId: string; outcome: "YES" | "NO"; side: "BUY" | "SELL"; price: number; quantity: number }) =>
+    request("/orders", token, { method: "POST", body: JSON.stringify(data) }),
+  cancelOrder: (token: string, orderId: string) => request(`/orders/${orderId}/cancel`, token, { method: "POST" }),
+  split: (token: string, marketId: string, quantity: number) => request("/split", token, { method: "POST", body: JSON.stringify({ marketId, quantity }) }),
+  merge: (token: string, marketId: string, quantity: number) => request("/merge", token, { method: "POST", body: JSON.stringify({ marketId, quantity }) }),
+  deposit: (token: string, amount: number) => request("/deposits", token, { method: "POST", body: JSON.stringify({ amount }) }),
+  withdraw: (token: string, amount: number) => request("/withdrawals", token, { method: "POST", body: JSON.stringify({ amount }) }),
 };

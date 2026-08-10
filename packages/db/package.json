@@ -7,7 +7,10 @@
   },
  "private": true,
 "scripts": {
-  "postinstall": "prisma generate"
+  "postinstall": "prisma generate",
+  "check-types": "tsc --noEmit",
+  "migrate": "prisma migrate dev",
+  "generate": "prisma generate"
 },
   "devDependencies": {
     "@types/bun": "latest",

@@ -1,46 +1,55 @@
+export type Outcome = "YES" | "NO";
+export type OrderSide = "BUY" | "SELL";
+export type OrderStatus = "OPEN" | "PARTIALLY_FILLED" | "FILLED" | "CANCELLED";
+
+export interface OrderBookLevel {
+  price: number;
+  quantity: number;
+  orderCount: number;
+}
+
+export interface OrderBook {
+  YES: { bids: OrderBookLevel[]; asks: OrderBookLevel[] };
+  NO: { bids: OrderBookLevel[]; asks: OrderBookLevel[] };
+}
+
 export interface Market {
   id: string;
   title: string;
   description: string;
   resolutionDescription: string;
-  yesOrderbook: string | Orderbook;
-  noOrderbook: string | Orderbook;
-  totalQty: number;
-}
-
-export interface Orderbook {
-  [key: string]: {
-    availableQty: number;
-    orders: {
-      userId: string;
-      qty: number;
-      filledQty: number;
-      originalOrderId: string;
-      reverseOrder: boolean;
-    }[];
-  };
+  category: string;
+  status: "OPEN" | "CLOSED" | "RESOLVED" | "CANCELLED";
+  closesAt: string | null;
+  createdAt: string;
+  orderBook: OrderBook;
 }
 
 export interface Position {
   id: string;
-  userId: string;
   marketId: string;
-  type: "Yes" | "No";
-  qty: number;
+  outcome: Outcome;
+  availableQty: number;
+  reservedQty: number;
+  market: { title: string; status: Market["status"] };
 }
 
-export interface OrderHistory {
+export interface Order {
   id: string;
-  orderType: "Buy" | "Sell" | "Split" | "Merge";
-  userId: string;
-  price: number;
-  qty: number;
   marketId: string;
-  createdAt?: Date;
+  outcome: Outcome;
+  side: OrderSide;
+  price: number;
+  quantity: number;
+  filledQuantity: number;
+  status: OrderStatus;
+  createdAt: string;
+  market: { title: string };
 }
 
-export interface User {
+export interface Account {
   id: string;
   address: string;
-  usdBalance: number;
+  availableBalance: number;
+  reservedBalance: number;
 }

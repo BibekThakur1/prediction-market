@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
+import { createClient } from "@supabase/supabase-js";
 import { useUser } from "./hooks/useUser";
-import { createClient, SupabaseClient } from "@supabase/supabase-js";
-import type { Market } from "./types";
+import { api } from "./api";
+import type { Account, Market } from "./types";
 import { MarketList } from "./components/MarketList";
 import { MarketDetail } from "./components/MarketDetail";
 import { OrderForm } from "./components/OrderForm";
@@ -11,271 +12,87 @@ import { OrderHistory } from "./components/OrderHistory";
 import { SplitMerge } from "./components/SplitMerge";
 import "./App.css";
 
-declare global {
-  interface Window {
-    solflare?: any;
-  }
-}
+declare global { interface Window { solflare?: unknown } }
 
-function App() {
-  const [supabase] = useState<SupabaseClient>(() =>
-    createClient(
-      "https://xueelexradfkwcuflstg.supabase.co",
-      "sb_publishable_yUiZrHgSvJiPbWbDYiGjEw_jfh8-zCr"
-    )
+const supabase = createClient(
+  import.meta.env.VITE_SUPABASE_URL ?? "https://example.supabase.co",
+  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? "missing-key",
+);
+
+type Tab = "markets" | "trading" | "portfolio" | "orders" | "funds";
+
+export default function App() {
+  const { session, loading: authLoading } = useUser(supabase);
+  const token = session?.access_token ?? "";
+  const [markets, setMarkets] = useState<Market[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [tab, setTab] = useState<Tab>("markets");
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [error, setError] = useState("");
+  const [account, setAccount] = useState<Account | null>(null);
+
+  useEffect(() => {
+    api.markets()
+      .then((data) => { setMarkets(data.markets); setError(""); })
+      .catch((err) => setError(err instanceof Error ? err.message : "Could not load markets"));
+  }, [refreshKey]);
+  useEffect(() => {
+    if (!token) return;
+    api.me(token)
+      .then((data) => setAccount(data.user))
+      .catch((err) => setError(err instanceof Error ? err.message : "Could not load your account"));
+  }, [token, refreshKey]);
+  const selectedMarket = markets.find((market) => market.id === selectedId) ?? null;
+  const refresh = () => setRefreshKey((value) => value + 1);
+
+  const signIn = async () => {
+    if (!window.solflare) return setError("Install the Solflare browser wallet to sign in.");
+    const { error: signInError } = await supabase.auth.signInWithWeb3({ chain: "solana", statement: "Sign in to Forecast testnet.", wallet: window.solflare as never });
+    if (signInError) setError(signInError.message);
+  };
+
+  if (authLoading) return <div className="loading-screen" aria-live="polite">Loading Forecast…</div>;
+  if (!session) return (
+    <main className="auth-container">
+      <section className="auth-box">
+        <div className="brand-mark" aria-hidden="true">F</div>
+        <span className="eyebrow">Testnet prediction exchange</span>
+        <h1>Trade your conviction, not your capital.</h1>
+        <p>Explore transparent prediction markets with test credits, a complete audit ledger, and no real-money risk.</p>
+        {error && <div className="error" role="alert">{error}</div>}
+        <button className="signin-button" onClick={signIn}>Connect Solflare</button>
+        <small>New profiles receive $100 in test credits.</small>
+      </section>
+    </main>
   );
 
-  return <AppWrapper supabase={supabase} />;
-}
-
-function AppWrapper({ supabase }: { supabase: SupabaseClient }) {
-  const { claims } = useUser(supabase);
-
-  const [token, setToken] = useState("");
-  const [markets, setMarkets] = useState<Market[]>([]);
-  const [selectedMarket, setSelectedMarket] = useState<Market | null>(null);
-  const [activeTab, setActiveTab] = useState("markets");
-  const [refreshKey, setRefreshKey] = useState(0);
-
-  // Get the current Supabase session
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.access_token) {
-        setToken(session.access_token);
-      }
-    });
-  }, [supabase, claims]);
-
-  // Fetch markets when the application loads
-  useEffect(() => {
-    fetchMarkets();
-  }, []);
-
-  const fetchMarkets = async () => {
-    try {
-      const response = await fetch("http://localhost:3000/markets");
-
-      if (!response.ok) {
-        throw new Error(
-          `Markets request failed: ${response.status} ${response.statusText}`
-        );
-      }
-
-      const data = await response.json();
-
-      const nextMarkets = data.markets || [];
-
-      setMarkets(nextMarkets);
-
-      setSelectedMarket((current) =>
-        current
-          ? nextMarkets.find(
-              (market: Market) => market.id === current.id
-            ) || current
-          : current
-      );
-    } catch (err) {
-      console.error("Failed to fetch markets:", err);
-    }
-  };
-
-  // Sign in using Solflare + Supabase Web3 Auth
-  const handleSignIn = async () => {
-    if (!window.solflare) {
-      console.error("Solflare wallet was not found.");
-      return;
-    }
-
-    try {
-      console.log("Starting Solana Web3 sign-in...");
-
-      const { data, error } = await supabase.auth.signInWithWeb3({
-        chain: "solana",
-        statement:
-          "I accept the Terms of Service at https://example.com/tos",
-        wallet: window.solflare,
-      });
-
-      console.log("Web3 auth data:", data);
-      console.log("Web3 auth error:", error);
-
-      if (error) {
-        console.error("Supabase Web3 authentication failed:", error);
-        return;
-      }
-
-      if (data?.session?.access_token) {
-        setToken(data.session.access_token);
-        console.log("Successfully signed in.");
-      }
-    } catch (err) {
-      console.error("Web3 sign-in exception:", err);
-    }
-  };
-
-  // Sign out
-  const handleSignOut = async () => {
-    try {
-      await supabase.auth.signOut();
-
-      setToken("");
-      setSelectedMarket(null);
-      setActiveTab("markets");
-    } catch (err) {
-      console.error("Failed to sign out:", err);
-    }
-  };
-
-  // Select a market
-  const handleSelectMarket = (marketId: string) => {
-    const market = markets.find((m) => m.id === marketId);
-
-    if (market) {
-      setSelectedMarket(market);
-      setActiveTab("trading");
-    }
-  };
-
-  // Called after an order/action completes
-  const handleActionComplete = () => {
-    setRefreshKey((prev) => prev + 1);
-    fetchMarkets();
-  };
-
-  // User isn't signed in
-  if (!claims) {
-    return (
-      <div className="app">
-        <div className="auth-container">
-          <h1>Prediction Market</h1>
-
-          <p>Please sign in to access the market</p>
-
-          {window.solflare && (
-            <button onClick={handleSignIn}>
-              Sign in with Solflare
-            </button>
-          )}
-
-          {!window.solflare && (
-            <p>Please install Solflare wallet to continue</p>
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  // User is signed in
   return (
-    <div className="app">
+    <div className="app-container">
       <header className="app-header">
-        <h1>Prediction Market</h1>
-
-        <button onClick={handleSignOut}>
-          Logout
-        </button>
+        <div className="brand-lockup"><div className="header-mark" aria-hidden="true">F</div><div><h1>Forecast</h1><p className="testnet-label"><span className="live-dot" />Testnet exchange</p></div></div>
+        <div className="header-actions"><div className="wallet-identity"><span>Connected profile</span><strong>{account?.address ? `${account.address.slice(0, 5)}…${account.address.slice(-4)}` : "Loading…"}</strong></div><button className="logout-button" onClick={() => supabase.auth.signOut()} aria-label="Sign out">Sign out</button></div>
       </header>
-
-      <nav className="app-nav">
-        <button
-          className={activeTab === "markets" ? "active" : ""}
-          onClick={() => {
-            setActiveTab("markets");
-            setSelectedMarket(null);
-          }}
-        >
-          Markets
-        </button>
-
-        <button
-          className={activeTab === "trading" ? "active" : ""}
-          onClick={() => setActiveTab("trading")}
-          disabled={!selectedMarket}
-        >
-          Trading
-        </button>
-
-        <button
-          className={activeTab === "balance" ? "active" : ""}
-          onClick={() => setActiveTab("balance")}
-        >
-          Balance
-        </button>
-
-        <button
-          className={activeTab === "positions" ? "active" : ""}
-          onClick={() => setActiveTab("positions")}
-        >
-          Positions
-        </button>
-
-        <button
-          className={activeTab === "history" ? "active" : ""}
-          onClick={() => setActiveTab("history")}
-        >
-          History
-        </button>
+      <nav className="app-nav" aria-label="Primary navigation">
+        {([['markets','Markets'],['portfolio','Portfolio'],['orders','Orders'],['funds','Funds']] as [Tab,string][]).map(([value, label]) => (
+          <button key={value} className={tab === value || (value === "markets" && tab === "trading") ? "active" : ""} onClick={() => { setTab(value); if (value === "markets") setSelectedId(null); }}>{label}</button>
+        ))}
       </nav>
-
       <main className="app-main">
-        {activeTab === "markets" && (
-          <MarketList
-            markets={markets}
-            onSelectMarket={handleSelectMarket}
-          />
-        )}
-
-        {activeTab === "trading" && selectedMarket && (
-          <div className="trading-container">
-            <MarketDetail
-              market={selectedMarket}
-              onBack={() => {
-                setActiveTab("markets");
-                setSelectedMarket(null);
-              }}
-            />
-
-            <aside className="trade-sidebar">
-              <OrderForm
-                market={selectedMarket}
-                token={token}
-                onOrderPlaced={handleActionComplete}
-              />
-
-              <SplitMerge
-                market={selectedMarket}
-                token={token}
-                onActionComplete={handleActionComplete}
-              />
-            </aside>
-          </div>
-        )}
-
-        {activeTab === "balance" && (
-          <Balance
-            token={token}
-            key={refreshKey}
-          />
-        )}
-
-        {activeTab === "positions" && (
-          <Positions
-            token={token}
-            markets={markets}
-            key={refreshKey}
-          />
-        )}
-
-        {activeTab === "history" && (
-          <OrderHistory
-            token={token}
-            markets={markets}
-            key={refreshKey}
-          />
-        )}
+        {error && <div className="error" role="alert">{error}</div>}
+        <section className="account-strip" aria-label="Account balances">
+          <div><span>Available balance</span><strong>{account ? `$${(account.availableBalance / 100).toFixed(2)}` : "—"}<small>USD</small></strong></div>
+          <div><span>Reserved for orders</span><strong>{account ? `$${(account.reservedBalance / 100).toFixed(2)}` : "—"}<small>USD</small></strong></div>
+          <div className="account-hint"><span>Settlement</span><strong>Fully collateralized</strong><small>Every movement is ledgered</small></div>
+        </section>
+        {tab === "markets" && <MarketList markets={markets} onSelectMarket={(id) => { setSelectedId(id); setTab("trading"); }} />}
+        {tab === "trading" && selectedMarket && <div className="trading-container">
+          <MarketDetail market={selectedMarket} onBack={() => { setSelectedId(null); setTab("markets"); }} />
+          <aside className="trade-sidebar"><OrderForm market={selectedMarket} token={token} availableBalance={account?.availableBalance ?? 0} onOrderPlaced={refresh} /><SplitMerge market={selectedMarket} token={token} availableBalance={account?.availableBalance ?? 0} onActionComplete={refresh} /></aside>
+        </div>}
+        {tab === "portfolio" && <Positions token={token} key={refreshKey} />}
+        {tab === "orders" && <OrderHistory token={token} onChanged={refresh} key={refreshKey} />}
+        {tab === "funds" && <Balance token={token} key={refreshKey} />}
       </main>
     </div>
   );
 }
-
-export default App;

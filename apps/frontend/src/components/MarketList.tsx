@@ -1,70 +1,34 @@
-import type { Market, Orderbook } from "../types";
+import { useMemo, useState } from "react";
+import type { Market } from "../types";
 
-interface MarketListProps {
-  markets: Market[];
-  onSelectMarket: (marketId: string) => void;
-}
+interface Props { markets: Market[]; onSelectMarket: (marketId: string) => void }
+const cents = (price?: number) => price == null ? "—" : `${price}¢`;
 
-function parseOrderbook(value: string | Orderbook): Orderbook {
-  return typeof value === "string" ? JSON.parse(value) : value;
-}
+export function MarketList({ markets, onSelectMarket }: Props) {
+  const [query, setQuery] = useState("");
+  const [category, setCategory] = useState("All");
+  const categories = ["All", ...new Set(markets.map((market) => market.category))];
+  const filtered = useMemo(() => markets.filter((market) =>
+    (category === "All" || market.category === category) &&
+    `${market.title} ${market.description}`.toLowerCase().includes(query.toLowerCase()),
+  ), [markets, query, category]);
 
-function bestAsk(orderbook: Orderbook) {
-  const prices = Object.keys(orderbook).map(Number).filter(Number.isFinite);
-  return prices.length ? Math.min(...prices) : null;
-}
-
-function formatCents(price: number | null) {
-  return price === null ? "—" : `${price}¢`;
-}
-
-function marketPrices(market: Market) {
-  const yesOrderbook = parseOrderbook(market.yesOrderbook);
-  const noOrderbook = parseOrderbook(market.noOrderbook);
-
-  return {
-    yes: bestAsk(yesOrderbook),
-    no: bestAsk(noOrderbook),
-  };
-}
-
-export function MarketList({ markets, onSelectMarket }: MarketListProps) {
-  return (
-    <section className="market-list">
-      <div className="section-heading">
-        <div>
-          <span className="eyebrow">Markets</span>
-          <h2>Trade live prediction markets</h2>
-        </div>
-        <span className="count-pill">{markets.length} markets</span>
-      </div>
-
-      {markets.length === 0 ? (
-        <div className="empty-state">No markets available.</div>
-      ) : (
-        <div className="markets-grid">
-          {markets.map((market) => {
-            const prices = marketPrices(market);
-
-            return (
-              <button key={market.id} className="market-card" onClick={() => onSelectMarket(market.id)}>
-                <div className="market-card-top">
-                  <span className="market-status">Open</span>
-                  <span className="market-liquidity">{market.totalQty.toLocaleString()} shares</span>
-                </div>
-
-                <h3>{market.title}</h3>
-                <p>{market.description}</p>
-
-                <div className="market-card-actions">
-                  <span className="price-chip yes-chip">Yes {formatCents(prices.yes)}</span>
-                  <span className="price-chip no-chip">No {formatCents(prices.no)}</span>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      )}
-    </section>
-  );
+  return <section className="market-list">
+    <div className="section-heading"><div><span className="eyebrow">Live markets</span><h2>What will happen next?</h2></div><span className="count-pill">{filtered.length} markets</span></div>
+    <div className="market-toolbar">
+      <label className="search-field"><span className="sr-only">Search markets</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search markets" /></label>
+      <div className="category-filter" aria-label="Filter by category">{categories.map((item) => <button key={item} className={category === item ? "active" : ""} onClick={() => setCategory(item)}>{item}</button>)}</div>
+    </div>
+    {filtered.length === 0 ? <div className="empty-state">No markets match your filters.</div> : <div className="markets-grid">
+      {filtered.map((market) => {
+        const yes = market.orderBook.YES;
+        const no = market.orderBook.NO;
+        return <button key={market.id} className="market-card" onClick={() => onSelectMarket(market.id)}>
+          <div className="market-card-top"><span className="market-status">{market.status}</span><span className="market-liquidity">{market.category}</span></div>
+          <h3>{market.title}</h3><p>{market.description}</p>
+          <div className="market-card-actions"><span className="price-chip yes-chip">Yes {cents(yes.asks[0]?.price ?? yes.bids[0]?.price)}</span><span className="price-chip no-chip">No {cents(no.asks[0]?.price ?? no.bids[0]?.price)}</span></div>
+        </button>;
+      })}
+    </div>}
+  </section>;
 }
