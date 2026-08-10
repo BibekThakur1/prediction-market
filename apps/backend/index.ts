@@ -3,7 +3,7 @@ import { uuid } from "uuidv4";
 import cors from "cors";
 import path from "path";
 import { middleware } from "./middleware";
-import { prisma } from "db";
+import { prisma, Prisma } from "db";
 import { CreateOrderSchema, SplitSchema, OnrampSchema, OfframpSchema, type Orderbook } from "./types";
 
 const app = express();
@@ -45,7 +45,7 @@ app.post("/order", middleware, async (req, res) => {
     const originalOrderId = uuid();
     
     try {
-        await prisma.$transaction(async tx => {
+        await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
             const response = await tx.$queryRaw<{yesOrderbook: unknown, noOrderbook: unknown, id: string, totalQty: number}[]>`SELECT * FROM "Market" WHERE id=${data.marketId} FOR UPDATE;`;
             const userResponse = await tx.$queryRaw<{id: string, address: string, usdBalance: number}[]>`SELECT * FROM "User" WHERE id=${userId} FOR UPDATE;`;
 
@@ -611,7 +611,7 @@ app.post("/split", middleware, async (req, res) => {
     }
     const marketId = data?.marketId;
 
-    await prisma.$transaction(async tx => {
+    await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
         const userResponse = await tx.$queryRaw<{id: string, address: string, usdBalance: number}[]>`SELECT * FROM "User" WHERE id=${userId} FOR UPDATE;`;
         const user = userResponse[0];
         if (!user) {
@@ -702,7 +702,7 @@ app.post("/merge", middleware, async (req, res) => {
     const marketId = data?.marketId;
 
     try {
-        await prisma.$transaction(async tx => {
+        await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
             const userResponse = await tx.$queryRaw<{id: string, address: string, usdBalance: number}[]>`SELECT * FROM "User" WHERE id=${userId} FOR UPDATE;`;
             const user = userResponse[0];
             if (!user) {
@@ -852,7 +852,7 @@ app.post("/onramp", middleware, async (req, res) => {
     }
 
     try {
-        await prisma.$transaction(async tx => {
+        await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
             const userResponse = await tx.$queryRaw<{id: string, address: string, usdBalance: number}[]>`SELECT * FROM "User" WHERE id=${userId} FOR UPDATE;`;
             const user = userResponse[0];
             if (!user) {
@@ -899,7 +899,7 @@ app.post("/offramp", middleware, async (req, res) => {
     }
 
     try {
-        await prisma.$transaction(async tx => {
+        await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
             const userResponse = await tx.$queryRaw<{id: string, address: string, usdBalance: number}[]>`SELECT * FROM "User" WHERE id=${userId} FOR UPDATE;`;
             const user = userResponse[0];
             if (!user) {
