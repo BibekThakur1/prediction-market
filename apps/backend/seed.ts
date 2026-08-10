@@ -7,8 +7,10 @@ const markets = [
   {
     id: uuid(),
     title: "Will Bitcoin reach $100,000 by end of 2025?",
-    description: "This market resolves to Yes if Bitcoin trades at or above $100,000 on any major exchange before December 31, 2025.",
-    resolutionDescription: "Based on Bitcoin price on CoinMarketCap or similar major exchange",
+    description:
+      "This market resolves to Yes if Bitcoin trades at or above $100,000 on any major exchange before December 31, 2025.",
+    resolutionDescription:
+      "Based on Bitcoin price on CoinMarketCap or similar major exchange",
     yesOrderbook: emptyOrderbook,
     noOrderbook: emptyOrderbook,
     totalQty: 0,
@@ -16,8 +18,10 @@ const markets = [
   {
     id: uuid(),
     title: "Will AI pass Turing test by 2026?",
-    description: "This market resolves to Yes if an AI system is widely recognized as passing the Turing test by end of 2026.",
-    resolutionDescription: "Based on consensus from major AI research organizations",
+    description:
+      "This market resolves to Yes if an AI system is widely recognized as passing the Turing test by end of 2026.",
+    resolutionDescription:
+      "Based on consensus from major AI research organizations",
     yesOrderbook: emptyOrderbook,
     noOrderbook: emptyOrderbook,
     totalQty: 0,
@@ -25,8 +29,10 @@ const markets = [
   {
     id: uuid(),
     title: "Will SpaceX land humans on Mars by 2030?",
-    description: "This market resolves to Yes if SpaceX successfully lands humans on Mars before January 1, 2030.",
-    resolutionDescription: "Based on official SpaceX announcements and independent verification",
+    description:
+      "This market resolves to Yes if SpaceX successfully lands humans on Mars before January 1, 2030.",
+    resolutionDescription:
+      "Based on official SpaceX announcements and independent verification",
     yesOrderbook: emptyOrderbook,
     noOrderbook: emptyOrderbook,
     totalQty: 0,
@@ -34,8 +40,10 @@ const markets = [
   {
     id: uuid(),
     title: "Will Ethereum 2.0 be fully implemented by 2025?",
-    description: "This market resolves to Yes if Ethereum completes its full transition to proof-of-stake and all planned upgrades by end of 2025.",
-    resolutionDescription: "Based on official Ethereum Foundation announcements",
+    description:
+      "This market resolves to Yes if Ethereum completes its full transition to proof-of-stake and all planned upgrades by end of 2025.",
+    resolutionDescription:
+      "Based on official Ethereum Foundation announcements",
     yesOrderbook: emptyOrderbook,
     noOrderbook: emptyOrderbook,
     totalQty: 0,
@@ -43,7 +51,8 @@ const markets = [
   {
     id: uuid(),
     title: "Will a COVID-19 vaccine be available by 2025?",
-    description: "This market resolves to Yes if an FDA-approved COVID-19 vaccine is available to the public by end of 2025.",
+    description:
+      "This market resolves to Yes if an FDA-approved COVID-19 vaccine is available to the public by end of 2025.",
     resolutionDescription: "Based on FDA approval announcements",
     yesOrderbook: emptyOrderbook,
     noOrderbook: emptyOrderbook,
@@ -98,7 +107,13 @@ async function seed() {
   const user2 = users[1];
   const user3 = users[2];
 
+  // Make sure the required seed data exists
+  if (!market || !user1 || !user2 || !user3) {
+    throw new Error("Seed data is incomplete");
+  }
+
   console.log("Creating sample positions...");
+
   // User1 buys Yes shares in market 1
   await prisma.position.create({
     data: {
@@ -121,6 +136,7 @@ async function seed() {
 
   // Create some order history
   console.log("Creating sample order history...");
+
   await prisma.orderHistory.create({
     data: {
       id: uuid(),
@@ -144,6 +160,7 @@ async function seed() {
   });
 
   // Update orderbooks with proper pricing (Yes + No >= 100 to prevent arbitrage)
+
   // Yes Orderbook: People selling Yes (asks for Yes)
   const yesOrderbook = {
     "62": {
@@ -165,6 +182,7 @@ async function seed() {
         },
       ],
     },
+
     "66": {
       availableQty: 120,
       orders: [
@@ -184,6 +202,7 @@ async function seed() {
         },
       ],
     },
+
     "70": {
       availableQty: 100,
       orders: [
@@ -203,6 +222,7 @@ async function seed() {
         },
       ],
     },
+
     "74": {
       availableQty: 80,
       orders: [
@@ -222,6 +242,7 @@ async function seed() {
         },
       ],
     },
+
     "78": {
       availableQty: 60,
       orders: [
@@ -243,7 +264,8 @@ async function seed() {
     },
   };
 
-  // No Orderbook: People selling No (asks for No) - priced so Yes + No >= 100
+  // No Orderbook: People selling No (asks for No)
+  // priced so Yes + No >= 100
   const noOrderbook = {
     "42": {
       availableQty: 140,
@@ -264,6 +286,7 @@ async function seed() {
         },
       ],
     },
+
     "46": {
       availableQty: 120,
       orders: [
@@ -283,6 +306,7 @@ async function seed() {
         },
       ],
     },
+
     "50": {
       availableQty: 100,
       orders: [
@@ -302,6 +326,7 @@ async function seed() {
         },
       ],
     },
+
     "54": {
       availableQty: 80,
       orders: [
@@ -321,6 +346,7 @@ async function seed() {
         },
       ],
     },
+
     "58": {
       availableQty: 60,
       orders: [
@@ -345,14 +371,19 @@ async function seed() {
   await prisma.market.update({
     where: { id: market.id },
     data: {
-      yesOrderbook: yesOrderbook,
-      noOrderbook: noOrderbook,
+      yesOrderbook,
+      noOrderbook,
       totalQty: 930,
     },
   });
 
   // Add liquidity to second market as well with proper pricing
   const market2 = markets[1];
+
+  if (!market2) {
+    throw new Error("Second market is missing");
+  }
+
   const yesOrderbook2 = {
     "57": {
       availableQty: 120,
@@ -373,6 +404,7 @@ async function seed() {
         },
       ],
     },
+
     "61": {
       availableQty: 100,
       orders: [
@@ -392,6 +424,7 @@ async function seed() {
         },
       ],
     },
+
     "65": {
       availableQty: 80,
       orders: [
@@ -433,6 +466,7 @@ async function seed() {
         },
       ],
     },
+
     "51": {
       availableQty: 80,
       orders: [
@@ -452,6 +486,7 @@ async function seed() {
         },
       ],
     },
+
     "55": {
       availableQty: 60,
       orders: [
