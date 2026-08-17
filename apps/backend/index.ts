@@ -1,10 +1,10 @@
 import express, { type NextFunction, type Request, type Response } from "express";
 import cors from "cors";
-import { prisma } from "./database";
-import { middleware } from "./auth";
-import { ApiError } from "./errors";
-import { CancelOrderSchema, CreateOrderSchema, SplitMergeSchema, TransferSchema } from "./types";
-import { cancelOrder, mergePosition, placeOrder, splitPosition } from "./trading";
+import { prisma } from "./database.js";
+import { middleware } from "./auth.js";
+import { ApiError } from "./errors.js";
+import { CancelOrderSchema, CreateOrderSchema, SplitMergeSchema, TransferSchema } from "./types.js";
+import { cancelOrder, mergePosition, placeOrder, splitPosition } from "./trading.js";
 
 const app = express();
 const port = Number(process.env.PORT ?? 3000);

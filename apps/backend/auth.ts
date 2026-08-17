@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { prisma } from "./database";
+import { prisma } from "./database.js";
 import type { NextFunction, Request, Response } from "express";
 
 function env(name: string) {

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { pricesCross, remainingQuantity, settlementAmounts, sortByPriceTime, statusAfterFill } from "./matching";
+import { pricesCross, remainingQuantity, settlementAmounts, sortByPriceTime, statusAfterFill } from "./matching.js";
 
 describe("matching rules", () => {
   test("uses best price, then earliest order", () => {

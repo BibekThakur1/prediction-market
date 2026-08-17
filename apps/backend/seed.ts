@@ -1,4 +1,4 @@
-import { prisma } from "./database";
+import { prisma } from "./database.js";
 
 const markets = [
   { id: "6bfa94f7-8ba2-4ab5-bf09-498874a4f001", title: "Will Bitcoin trade above $150,000 before 2027?", category: "Crypto", description: "Resolves YES if BTC/USD trades at or above $150,000 on Coinbase before January 1, 2027.", resolutionDescription: "Coinbase BTC-USD daily high is the primary resolution source." },
