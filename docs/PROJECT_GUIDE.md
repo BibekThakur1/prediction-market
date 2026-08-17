@@ -86,7 +86,7 @@ Set a breakpoint or temporary log at these places:
 
 1. `OrderForm.tsx` inside `submit` — browser gathers the form values.
 2. `api.ts` inside `request` — browser sends JSON and a bearer token.
-3. `middleware.ts` — API verifies the Supabase user.
+3. `auth.ts` — API verifies the Supabase user.
 4. `index.ts` at `POST /orders` — Zod validates the request.
 5. `trading.ts` at `placeOrder` — transaction reserves and matches assets.
 6. Prisma queries — PostgreSQL commits the order, trade, positions, and ledger.
@@ -153,7 +153,7 @@ apps/
     src/components  Market, order, balance, position, and fund UI
   backend/          Real Express API and trading engine
     index.ts        Routes, CORS, responses, and error handling
-    middleware.ts   Supabase token verification and profile creation
+    auth.ts         Supabase token verification and profile creation
     trading.ts      Reserve, match, settle, cancel, split, and merge logic
     matching.ts     Small pure matching calculations
     types.ts        Zod request schemas
@@ -180,7 +180,7 @@ not harmful, but it makes deployment and onboarding harder to understand.
 4. A signed-out user sees the Solflare connection screen.
 5. A signed-in user receives a Supabase access token. The frontend adds it as
    `Authorization: Bearer <token>` on protected API calls.
-6. The API middleware asks Supabase to verify the token. It never trusts a user
+6. The API authentication middleware asks Supabase to verify the token. It never trusts a user
    ID sent by the browser.
 7. On first sign-in, the middleware creates a database profile and a test-credit
    deposit plus matching ledger entry in one transaction.

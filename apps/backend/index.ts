@@ -1,7 +1,7 @@
 import express, { type NextFunction, type Request, type Response } from "express";
 import cors from "cors";
 import { prisma } from "db";
-import { middleware } from "./middleware";
+import { middleware } from "./auth";
 import { ApiError } from "./errors";
 import { CancelOrderSchema, CreateOrderSchema, SplitMergeSchema, TransferSchema } from "./types";
 import { cancelOrder, mergePosition, placeOrder, splitPosition } from "./trading";
