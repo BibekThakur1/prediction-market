@@ -2,6 +2,9 @@
 
 A test-credit prediction exchange with normalized order books, price-time matching, reserved balances, immutable ledger entries, and a responsive React trading interface.
 
+New to this codebase? Read the [beginner project guide](docs/PROJECT_GUIDE.md).
+For production setup, use the [Vercel deployment runbook](docs/DEPLOYMENT.md).
+
 ## Architecture
 
 - React 19 + Vite frontend
@@ -20,25 +23,29 @@ Orders move through `OPEN`, `PARTIALLY_FILLED`, `FILLED`, and `CANCELLED`. Buy o
    bun install
    ```
 
-2. Copy `.env.example` to `.env` and provide the PostgreSQL and Supabase values. The frontend only receives the publishable Supabase key; the server secret stays in the API environment.
+2. Copy `.env.example` to the app-specific environment files and provide the
+   PostgreSQL and Supabase values. The frontend only receives the publishable
+   Supabase key; the server secret stays in the API environment.
 
-3. Apply the database migrations and seed markets:
-
-   ```bash
-   cd packages/db
-   bunx prisma migrate dev
-   cd ../../apps/backend
-   bun seed.ts
-   ```
-
-4. Start both processes in separate terminals:
+3. Start the existing development database. On the first run, use `db:create`
+   instead of `db:start`:
 
    ```bash
-   cd apps/backend && bun index.ts
-   cd apps/frontend && bun run dev
+   bun run db:start
+   bun run db:migrate
+   bun run db:seed
    ```
 
-The UI runs at `http://localhost:3001` and the API at `http://localhost:3000`. Each newly authenticated profile receives the amount configured by `TESTNET_STARTING_BALANCE_CENTS` (default: $100.00), recorded as a deposit and ledger entry.
+4. Start the real frontend and API together:
+
+   ```bash
+   bun run dev
+   ```
+
+Open `http://localhost:3001`—do not open `index.html` with `file://`. The API
+runs at `http://localhost:3000`. Each newly authenticated profile receives the
+amount configured by `TESTNET_STARTING_BALANCE_CENTS` (default: $100.00),
+recorded as a deposit and ledger entry.
 
 ## Main API
 

@@ -3,7 +3,15 @@
   "private": true,
   "scripts": {
     "build": "turbo run build",
-    "dev": "turbo run dev",
+    "dev": "turbo run dev --filter=frontend --filter=backend",
+    "dev:all": "turbo run dev",
+    "dev:frontend": "bun run --cwd apps/frontend dev",
+    "dev:backend": "bun --cwd apps/backend --watch index.ts",
+    "db:create": "docker run --name prediction-postgres -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=prediction_market -p 5432:5432 -d postgres:16",
+    "db:start": "docker start prediction-postgres",
+    "db:stop": "docker stop prediction-postgres",
+    "db:migrate": "bunx prisma migrate deploy --config packages/db/prisma.config.ts",
+    "db:seed": "bun apps/backend/seed.ts",
     "lint": "turbo run lint",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
     "check-types": "turbo run check-types"

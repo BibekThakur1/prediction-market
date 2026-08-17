@@ -136,4 +136,10 @@ app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
   res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "An unexpected error occurred" } });
 });
 
-app.listen(port, () => console.log(`API listening on http://localhost:${port}`));
+// Vercel imports this Express application and turns it into one Function.
+// Local development still starts a normal long-running HTTP server.
+if (!process.env.VERCEL) {
+  app.listen(port, () => console.log(`API listening on http://localhost:${port}`));
+}
+
+export default app;

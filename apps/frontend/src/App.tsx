@@ -14,9 +14,18 @@ import "./App.css";
 
 declare global { interface Window { solflare?: unknown } }
 
+const publicConfig = {
+  VITE_SUPABASE_URL: import.meta.env.VITE_SUPABASE_URL,
+  VITE_SUPABASE_PUBLISHABLE_KEY: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+  VITE_API_URL: import.meta.env.VITE_API_URL,
+};
+const missingPublicConfig = Object.entries(publicConfig)
+  .filter(([, value]) => !value)
+  .map(([name]) => name);
+
 const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL ?? "https://example.supabase.co",
-  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? "missing-key",
+  publicConfig.VITE_SUPABASE_URL ?? "https://example.supabase.co",
+  publicConfig.VITE_SUPABASE_PUBLISHABLE_KEY ?? "missing-key",
 );
 
 type Tab = "markets" | "trading" | "portfolio" | "orders" | "funds";
@@ -50,6 +59,18 @@ export default function App() {
     const { error: signInError } = await supabase.auth.signInWithWeb3({ chain: "solana", statement: "Sign in to Forecast testnet.", wallet: window.solflare as never });
     if (signInError) setError(signInError.message);
   };
+
+  if (missingPublicConfig.length) return (
+    <main className="auth-container">
+      <section className="auth-box" role="alert">
+        <div className="brand-mark" aria-hidden="true">F</div>
+        <span className="eyebrow">Setup required</span>
+        <h1>Forecast is not configured yet.</h1>
+        <p>Add {missingPublicConfig.join(", ")} to the frontend environment, then rebuild the app.</p>
+        <small>See docs/DEPLOYMENT.md for the exact Vercel setup.</small>
+      </section>
+    </main>
+  );
 
   if (authLoading) return <div className="loading-screen" aria-live="polite">Loading Forecast…</div>;
   if (!session) return (
